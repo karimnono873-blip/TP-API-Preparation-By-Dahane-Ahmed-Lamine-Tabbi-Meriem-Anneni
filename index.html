@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TP API S7-300 | Dahane & Tabbi</title>
+    <style>
+        /* ==========================================================================
+           Master Edition UI - Global Variables & Reset
+           ========================================================================== */
+        :root {
+            --bg-base: #0b0f19;
+            --bg-panel: #161e2e;
+            --bg-panel-light: #1f2937;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --power-off: #374151;
+            --power-on: #10b981; /* Green for electrical continuity */
+            --accent: #3b82f6;
+            --alert: #ef4444;
+            --font-ui: 'Segoe UI', system-ui, sans-serif;
+            --font-code: 'Consolas', 'Monaco', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            line-height: 1.6;
+        }
+
+        /* ==========================================================================
+           Layout & Typography
+           ========================================================================== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* --- PAGE DE GARDE STYLES --- */
+        .page-de-garde {
+            background: linear-gradient(145deg, var(--bg-panel), #0f1523);
+            border: 2px solid var(--accent);
+            border-top: 8px solid var(--accent);
+            border-radius: 12px;
+            padding: 5rem 3rem;
+            text-align: center;
+            margin-bottom: 5rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-de-garde::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .page-de-garde > * { position: relative; z-index: 1; }
+
+        .univ-header {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 4rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            line-height: 1.8;
+        }
+
+        .page-de-garde h2 {
+            font-size: 1.8rem;
+            color: var(--text-main);
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page-de-garde h1 {
+            font-size: 3.5rem;
+            color: var(--accent);
+            margin: 1rem 0;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .details-grid {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 5rem;
+            text-align: left;
+            background: rgba(0,0,0,0.2);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--bg-panel-light);
+        }
+
+        .details-grid h3 { color: var(--power-on); font-size: 1.2rem; margin-top: 0; margin-bottom: 1rem; border: none; }
+        .details-grid ul { list-style: none; font-size: 1.2rem; }
+        .details-grid li { margin-bottom: 0.5rem; }
+
+        .footer-year {
+            margin-top: 4rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        /* --- CONTENT STYLES --- */
+        header {
+            border-bottom: 3px solid var(--accent);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        header h1 { color: var(--accent); font-size: 2rem; margin-bottom: 0; }
+        .header-meta { text-align: right; color: var(--text-muted); }
+
+        h2 { color: var(--power-on); border-bottom: 1px solid #374151; padding-bottom: 0.5rem; margin: 3rem 0 1rem 0; }
+        h3 { color: #f59e0b; margin: 1.5rem 0 1rem 0; }
+
+        /* ==========================================================================
+           Tables
+           ========================================================================== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--bg-panel-light); }
+        th { background: var(--bg-panel-light); color: var(--accent); text-transform: uppercase; font-size: 0.9rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+        /* ==========================================================================
+           Interactive Simulator Layout
+           ========================================================================== */
+        .simulator-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .control-panel {
+            background: var(--bg-panel);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .ladder-canvas {
+            background: #000;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 2px solid #374151;
+            font-family: var(--font-code);
+            overflow-x: auto;
+        }
+
+        /* Buttons & Controls */
+        .btn-sensor {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: var(--bg-panel-light);
+            color: var(--text-main);
+            border: 2px solid var(--power-off);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .btn-sensor.active {
+            border-color: var(--power-on);
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--power-on);
+        }
+
+        .btn-sensor:hover { filter: brightness(1.2); }
+
+        /* Dashboard Indicators */
+        .indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #000;
+            border-radius: 4px;
+            font-family: var(--font-code);
+        }
+
+        .led {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--power-off);
+            box-shadow: 0 0 5px #000;
+        }
+
+        .led.on {
+            background: var(--power-on);
+            box-shadow: 0 0 10px var(--power-on);
+        }
+
+        /* ==========================================================================
+           LADDER CSS Engine (Visual Logic)
+           ========================================================================== */
+        .rung {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+            position: relative;
+            color: var(--text-muted);
+        }
+
+        .rung-num {
+            width: 40px;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .wire {
+            height: 2px;
+            background: var(--power-off);
+            flex-grow: 1;
+            position: relative;
+            transition: background 0.1s;
+        }
+
+        .wire.powered { background: var(--power-on); }
+
+        .contact {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .contact-symbol {
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: #000;
+            padding: 0 5px;
+            transition: color 0.1s;
+        }
+
+        .contact-label {
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .contact-addr {
+            font-size: 0.7rem;
+            color: var(--accent);
+            margin-top: 4px;
+        }
+
+        .coil {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: auto;
+            background: #000;
+            padding: 0 10px;
+            z-index: 2;
+        }
+
+        .coil-symbol { font-size: 1.5rem; transition: color 0.1s; }
+
+        .block {
+            border: 1px solid var(--text-muted);
+            padding: 10px;
+            background: var(--bg-panel);
+            min-width: 120px;
+            margin: 0 20px;
+            text-align: center;
+        }
+        
+        .block-header { font-weight: bold; border-bottom: 1px solid var(--text-muted); margin-bottom: 5px;}
+
+        /* Powered State Classes applied via JS */
+        .power-flow { color: var(--power-on) !important; }
+        .power-wire { background: var(--power-on) !important; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="page-de-garde">
+        <div class="univ-header">
+            <strong>Université des Sciences et de la Technologie Houari Boumediene (USTHB)</strong><br>
+            Faculté de Génie Electrique | Département d'Automatique
+        </div>
+
+        <h2>Module : Automates Programmables Industriels (API)</h2>
+        <h1>TP : Programmation Avancée des API</h1>
+        <p style="font-size: 1.5rem; color: var(--accent); margin-bottom: 1rem; font-weight: bold;">Master 1 : Automatique et Informatique Industrielle (AII)</p>
+        <p style="font-size: 1.1rem; color: var(--text-muted);">Simulation, Logique LADDER et Configuration TIA Portal</p>
+
+        <div class="details-grid">
+            <div>
+                <h3>👥 Réalisé par (Binôme) :</h3>
+                <ul>
+                    <li>👨‍💻 <strong>Dahane Ahmed Lamine</strong></li>
+                    <li>👩‍💻 <strong>Meriem Tabbi</strong></li>
+                </ul>
+            </div>
+            <div>
+                <h3>👩‍🏫 Sous la direction de :</h3>
+                <p style="font-size: 1.2rem; margin-top: 0.5rem;"><strong>Prof. Achouri Fouzia</strong></p>
+            </div>
+        </div>
+
+        <div class="footer-year">
+            Année Universitaire : 2025 / 2026
+        </div>
+    </div>
+
+    <header>
+        <div>
+            <h1>Documentation Interactive S7-300</h1>
+        </div>
+        <div class="header-meta">
+            <p><strong>Créé par :</strong> Dahane Ahmed Lamine & Meriem Tabbi</p>
+            <p><strong>Plateforme :</strong> SIMATIC TIA Portal V21</p>
+        </div>
+    </header>
+
+    <section>
+        <h2>1. Préparation Théorique & Architecture Matérielle</h2>
+        <p>Avant d'entamer la programmation, il est crucial d'établir la cartographie de la mémoire physique de l'automate S7-300. Les modules d'entrées (DI) et de sorties (DO) sont paramétrés sur des octets spécifiques du rack.</p>
+
+        <h3>1.1 Table d'affectation des E/S - Partie 1 (Remplissage Cuve)</h3>
+        <table>
+            <thead>
+                <tr><th>Mnémonique</th><th>Adresse API</th><th>Type</th><th>Rôle Fonctionnel</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>CPT_LSL</td><td>%I0.0</td><td>Bool</td><td>Détection Niveau Bas (Normally Open)</td></tr>
+                <tr><td>CPT_LSH</td><td>%I0.1</td><td>Bool</td><td>Détection Niveau Haut (Normally Open)</td></tr>
+                <tr><td>PP_1</td><td>%Q4.0</td><td>Bool</td><td>Commande Moteur Pompe 1</td></tr>
+                <tr><td>M_FIN_TEMPO</td><td>%M0.1</td><td>Bool</td><td>Mémoire interne - Validation de stabilité (10s)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>1.2 Table d'affectation des E/S - Partie 2 (Poste d'Usinage)</h3>
+        <table>
+            <thead>
+                <tr><th>Mnémonique</th><th>Adresse API</th><th>Type</th><th>Rôle Fonctionnel</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>dcy</td><td>%I1.0</td><td>Bool</td><td>Bouton Poussoir - Départ Cycle</td></tr>
+                <tr><td>p</td><td>%I1.1</td><td>Bool</td><td>Capteur - Présence Pièce</td></tr>
+                <tr><td>a0 / a1</td><td>%I1.2 / %I1.3</td><td>Bool</td><td>Fin de course Vérin Alésage (Rentré / Sorti)</td></tr>
+                <tr><td>f0 / f1</td><td>%I1.6 / %I1.7</td><td>Bool</td><td>Fin de course Vérin Fraisage (Rentré / Sorti)</td></tr>
+                <tr><td>s0 / s1</td><td>%I2.0 / %I2.1</td><td>Bool</td><td>Fin de course Vérin Serrage (Rentré / Sorti)</td></tr>
+                <tr><td>A_PLUS / A_MOINS</td><td>%Q5.0 / %Q5.1</td><td>Bool</td><td>Distributeur Bistable - Vérin Alésage</td></tr>
+                <tr><td>E_PLUS</td><td>%Q5.6</td><td>Bool</td><td>Distributeur Monostable - Vérin Ejection</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>2. Simulateur LADDER : Partie 1 - Remplissage de Cuve</h2>
+        <p><strong>Cahier des charges :</strong> La pompe s'active au niveau bas (LSL). Le niveau haut (LSH) doit être maintenu pendant <strong>10 secondes</strong> (temporisation TON) avant d'arrêter la pompe pour éviter les fluctuations de liquide.</p>
+        
+        <div class="simulator-grid">
+            <div class="control-panel">
+                <h3>Panneau Opérateur</h3>
+                <button class="btn-sensor" id="btn-lsl">Capteur Niveau Bas (CPT_LSL)</button>
+                <button class="btn-sensor" id="btn-lsh">Capteur Niveau Haut (CPT_LSH)</button>
+                
+                <h3 style="margin-top: 2rem;">État des Sorties API</h3>
+                <div class="indicator">
+                    <span>Pompe 1 (%Q4.0)</span>
+                    <div class="led" id="led-pump"></div>
+                </div>
+                <div class="indicator">
+                    <span>Validation Stabilité (%M0.1)</span>
+                    <div class="led" id="led-m01"></div>
+                </div>
+                
+                <h3 style="margin-top: 2rem;">Bloc TON (T_STABILITE)</h3>
+                <div class="indicator">
+                    <span>Temps écoulé (ET)</span>
+                    <span id="ton-value" style="color: var(--accent);">0.0 s</span>
+                </div>
+            </div>
+
+            <div class="ladder-canvas">
+                <div style="color: var(--text-muted); margin-bottom: 10px;">// Réseau 1 : Validation de la stabilité du niveau haut (10s)</div>
+                <div class="rung">
+                    <div class="rung-num">1</div>
+                    <div class="wire" id="w1-1"></div>
+                    
+                    <div class="contact">
+                        <span class="contact-label">CPT_LSH</span>
+                        <span class="contact-symbol" id="c-lsh">| |</span>
+                        <span class="contact-addr">%I0.1</span>
+                    </div>
+                    
+                    <div class="wire" id="w1-2"></div>
+                    
+                    <div class="block" id="b-ton">
+                        <div class="block-header">TON (SFB4)</div>
+                        <div style="text-align: left; font-size: 0.8rem; margin-top: 5px;">
+                            IN ---- Q<br>
+                            PT: 10s
+                        </div>
+                    </div>
+
+                    <div class="wire" id="w1-3"></div>
+
+                    <div class="coil">
+                        <span class="contact-label">M_FIN_TEMPO</span>
+                        <span class="coil-symbol" id="coil-m01">( )</span>
+                        <span class="contact-addr">%M0.1</span>
+                    </div>
+                </div>
+
+                <div style="color: var(--text-muted); margin-bottom: 10px; margin-top: 2rem;">// Réseau 2 : Commande de la Pompe (Auto-maintien)</div>
+                <div class="rung" style="margin-bottom: 0;">
+                    <div class="rung-num">2</div>
+                    <div class="wire" id="w2-1"></div>
+                    
+                    <div class="contact">
+                        <span class="contact-label">CPT_LSL</span>
+                        <span class="contact-symbol" id="c-lsl">| |</span>
+                        <span class="contact-addr">%I0.0</span>
+                    </div>
+                    
+                    <div class="wire" id="w2-2"></div>
+
+                    <div class="contact">
+                        <span class="contact-label">M_FIN_TEMPO</span>
+                        <span class="contact-symbol" id="c-m01">| / |</span>
+                        <span class="contact-addr">%M0.1</span>
+                    </div>
+
+                    <div class="wire" id="w2-3"></div>
+
+                    <div class="coil">
+                        <span class="contact-label">PP_1</span>
+                        <span class="coil-symbol" id="coil-pump">( )</span>
+                        <span class="contact-addr">%Q4.0</span>
+                    </div>
+                </div>
+                <div class="rung" style="margin-top: -10px;">
+                    <div class="rung-num"></div>
+                    <div class="wire" style="background: transparent;"></div>
+                    <div style="width: 2px; height: 30px; background: var(--power-off); position: absolute; left: 40px; top: -15px;" id="w2-drop-l"></div>
+                    
+                    <div class="contact" style="margin-left: 20px;">
+                        <span class="contact-symbol" id="c-pump-hold">| |</span>
+                        <span class="contact-addr">%Q4.0</span>
+                    </div>
+                    
+                    <div style="width: 2px; height: 30px; background: var(--power-off); position: absolute; left: 110px; top: -15px;" id="w2-drop-r"></div>
+                    <div class="wire" style="background: transparent;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>3. Analyse et Programmation : Partie 2 (Poste d'Usinage)</h2>
+        <p>Le poste d'usinage est un système asynchrone nécessitant une gestion par séquence (GRAFCET). La difficulté majeure réside dans la gestion des <strong>tâches simultanées</strong> (Fraisage et Lamage) et la synchronisation avant le dégagement de la pièce.</p>
+
+        <h3>3.1 Logique de Synchronisation en LADDER (Divergence en ET)</h3>
+        <p>Pour traduire une divergence en ET (lancement simultané du fraisage et lamage), on utilise des bobines d'activation (SET) pour les étapes initiales de chaque branche :</p>
+        <pre style="background: #000; padding: 15px; border-left: 4px solid var(--accent); color: #4ade80; overflow-x: auto; font-family: var(--font-code); border-radius: 8px;">
+// ÉTAPE X1 -> Divergence en ET vers X11 (Fraisage) et X21 (Lamage)
+      %M1.1 (X1)    %I2.1 (s1)
+-------| |-----------| |-------------------------------------( S )-- %M1.2 (X2)
+                                                             ( R )-- %M1.1 (X1)
+                                                             // Activation des sous-tâches
+                                                             ( S )-- %M2.1 (X11)
+                                                             ( S )-- %M3.1 (X21)
+        </pre>
+
+        <h3>3.2 Gestion du Vérin Monostable (Ejection)</h3>
+        <p>Contrairement aux distributeurs bistables (A, F, S) qui utilisent les instructions <code>( S )</code> et <code>( R )</code>, le vérin d'éjection E nécessite un distributeur monostable. En LADDER, l'étape X4 doit maintenir la bobine standard <code>( )</code> active durant toute la phase d'éjection.</p>
+        <pre style="background: #000; padding: 15px; border-left: 4px solid var(--accent); color: #4ade80; font-family: var(--font-code); border-radius: 8px;">
+// ÉTAPE X4 : Action maintenue sur la sortie monostable E_PLUS
+      %M1.4 (X4)
+-------| |---------------------------------------------------( )---- %Q5.6 (E_PLUS)
+        </pre>
+
+        <h2>4. Étapes de Configuration TIA Portal V21</h2>
+        <p>Pour transférer ce code logique vers l'automate physique, respectez le protocole industriel suivant :</p>
+        <ol style="margin-left: 2rem; margin-bottom: 4rem;">
+            <li><strong>Création du projet :</strong> Nommez le projet <code>TP_API_AII_Dahane_Tabbi</code>.</li>
+            <li><strong>Vue Matérielle (Hardware Configuration) :</strong>
+                <ul>
+                    <li>Insérer un <em>Profilé Support (Rack)</em>.</li>
+                    <li>Emplacement 1 : Module d'alimentation (PS 307).</li>
+                    <li>Emplacement 2 : CPU S7-300 (ex: CPU 315-2 PN/DP).</li>
+                    <li>Emplacement 4 : Module d'entrées TOR (DI 16x24VDC).</li>
+                    <li>Emplacement 5 : Module de sorties TOR (DO 16xRelay).</li>
+                </ul>
+            </li>
+            <li><strong>Programmation Structurée :</strong> Créez les blocs fonctionnels. Utilisez l'OB1 pour appeler le FC_Cuve et FC_Usinage.</li>
+            <li><strong>Simulation S7-PLCSIM :</strong> Avant le transfert physique, cliquez sur <em>Démarrer la simulation</em>. TIA Portal compilera la configuration matérielle et logicielle pour vérifier l'absence d'erreurs (0 Errors, 0 Warnings).</li>
+        </ol>
+    </section>
+
+</div>
+
+<script>
+    // System Memory Map
+    let memory = {
+        I0_0: false, // LSL
+        I0_1: false, // LSH
+        M0_1: false, // FIN_TEMPO
+        Q4_0: false  // PUMP
+    };
+
+    let timer = {
+        active: false,
+        acc: 0,
+        preset: 100 // 10 seconds (100 * 100ms cycle)
+    };
+
+    // UI Elements
+    const btnLSL = document.getElementById('btn-lsl');
+    const btnLSH = document.getElementById('btn-lsh');
+    const ledPump = document.getElementById('led-pump');
+    const ledM01 = document.getElementById('led-m01');
+    const txtTon = document.getElementById('ton-value');
+
+    // DOM Nodes for Ladder Animation
+    const DOM = {
+        w1_1: document.getElementById('w1-1'),
+        cLSH: document.getElementById('c-lsh'),
+        w1_2: document.getElementById('w1-2'),
+        bTon: document.getElementById('b-ton'),
+        w1_3: document.getElementById('w1-3'),
+        coilM01: document.getElementById('coil-m01'),
+        
+        w2_1: document.getElementById('w2-1'),
+        cLSL: document.getElementById('c-lsl'),
+        w2_2: document.getElementById('w2-2'),
+        cM01: document.getElementById('c-m01'),
+        w2_3: document.getElementById('w2-3'),
+        coilPump: document.getElementById('coil-pump'),
+        
+        w2DropL: document.getElementById('w2-drop-l'),
+        cPumpHold: document.getElementById('c-pump-hold'),
+        w2DropR: document.getElementById('w2-drop-r')
+    };
+
+    // Event Listeners (Toggling Sensors)
+    btnLSL.addEventListener('click', () => {
+        memory.I0_0 = !memory.I0_0;
+        btnLSL.classList.toggle('active', memory.I0_0);
+        updateLogic();
+    });
+
+    btnLSH.addEventListener('click', () => {
+        memory.I0_1 = !memory.I0_1;
+        btnLSH.classList.toggle('active', memory.I0_1);
+        
+        // Timer Logic Reset
+        if(!memory.I0_1) {
+            timer.active = false;
+            timer.acc = 0;
+            memory.M0_1 = false;
+        } else {
+            timer.active = true;
+        }
+        updateLogic();
+    });
+
+    // Helper: Apply power CSS class
+    function setPower(element, isPowered, isWire = false) {
+        if(isPowered) {
+            element.classList.add(isWire ? 'power-wire' : 'power-flow');
+        } else {
+            element.classList.remove(isWire ? 'power-wire' : 'power-flow');
+        }
+    }
+
+    // PLC Scan Cycle & Render Function
+    function updateLogic() {
+        // --- RUNG 1 EVALUATION (TON) ---
+        let powerRung1 = true;
+        setPower(DOM.w1_1, powerRung1, true);
+        
+        setPower(DOM.cLSH, memory.I0_1);
+        powerRung1 = powerRung1 && memory.I0_1;
+        setPower(DOM.w1_2, powerRung1, true);
+        
+        if (powerRung1 && timer.active) {
+            setPower(DOM.bTon, true, true);
+            if (timer.acc >= timer.preset) {
+                memory.M0_1 = true; // Timer Done Bit
+            }
+        } else {
+            setPower(DOM.bTon, false, true);
+        }
+
+        setPower(DOM.w1_3, memory.M0_1, true);
+        setPower(DOM.coilM01, memory.M0_1);
+        ledM01.classList.toggle('on', memory.M0_1);
+
+        // --- RUNG 2 EVALUATION (PUMP AUTO-MAINTAIN) ---
+        let powerRung2 = true;
+        setPower(DOM.w2_1, powerRung2, true);
+
+        // Parallel Branch OR Logic
+        let branch1 = memory.I0_0;
+        let branch2 = memory.Q4_0;
+        
+        setPower(DOM.cLSL, branch1);
+        setPower(DOM.cPumpHold, branch2);
+        
+        // Animate parallel drop wires
+        setPower(DOM.w2DropL, powerRung2, true);
+        setPower(DOM.w2DropR, branch2, true);
+
+        powerRung2 = powerRung2 && (branch1 || branch2);
+        setPower(DOM.w2_2, powerRung2, true);
+
+        // Normally Closed Contact (NOT M0.1)
+        setPower(DOM.cM01, !memory.M0_1);
+        powerRung2 = powerRung2 && !memory.M0_1;
+
+        setPower(DOM.w2_3, powerRung2, true);
+        
+        // Output Coil
+        memory.Q4_0 = powerRung2;
+        setPower(DOM.coilPump, memory.Q4_0);
+        ledPump.classList.toggle('on', memory.Q4_0);
+    }
+
+    // PLC Clock (100ms intervals)
+    setInterval(() => {
+        if (timer.active && timer.acc < timer.preset) {
+            timer.acc += 1;
+            txtTon.innerText = (timer.acc / 10).toFixed(1) + ' s';
+            if(timer.acc >= timer.preset) updateLogic(); // Force evaluation on completion
+        } else if (!timer.active) {
+            txtTon.innerText = '0.0 s';
+        }
+    }, 100);
+
+    // Initial render
+    updateLogic();
+</script>
+
+</body>
+</html>
